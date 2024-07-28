@@ -10,13 +10,13 @@ const InputComponent = ({ onDimensionSubmit }) => {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="mb-4 flex">
+        <form onSubmit={handleSubmit} className="mb-4 flex space-x-4">
             <input
                 type="text"
                 value={dimension}
                 onChange={(e) => setDimension(e.target.value)}
                 placeholder="Enter dimensions..."
-                className="text-center border border-gray-300 p-2 px-10 rounded-lg flex-grow mr-2"
+                className="text-center border border-gray-300 p-2 rounded-lg flex-grow"
             />
             <button type="submit" className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition">
                 Submit

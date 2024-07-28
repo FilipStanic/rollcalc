@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import InputComponent from './InputComponent';
+import DimensionResult from './DimensionResult';
+import FileUpload from './FileUpload';
 import { PDFDocument } from 'pdf-lib';
 
-const rolls = [
+const colorRolls = [
     { size: 1524, price: 830 },
     { size: 1066, price: 575 },
     { size: 914, price: 500 },
@@ -11,15 +13,37 @@ const rolls = [
     { size: 450, price: 280 },
 ];
 
+const bandwRolls = [
+    { size: 914, price: 230 },
+    { size: 841, price: 220 },
+    { size: 650, price: 200 },
+    { size: 450, price: 160 },
+    { size: 320, price: 130 },
+];
+
 const App = () => {
     const [result, setResult] = useState('');
     const [costCalculation, setCostCalculation] = useState('');
     const [pageSizes, setPageSizes] = useState([]);
     const [rollCalculations, setRollCalculations] = useState([]);
     const [totalCost, setTotalCost] = useState(0);
+    const [currentRolls, setCurrentRolls] = useState(colorRolls);
+    const [bgColor, setBgColor] = useState('bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500');
+    const [buttonText, setButtonText] = useState('Switch to B&W Rolls');
+    const [showDetails, setShowDetails] = useState(true);
+
+    useEffect(() => {
+        const storedRolls = localStorage.getItem('currentRolls');
+        if (storedRolls) {
+            const parsedRolls = JSON.parse(storedRolls);
+            setCurrentRolls(parsedRolls);
+            setBgColor(parsedRolls === colorRolls ? 'bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500' : 'bg-gradient-to-r from-gray-400 via-gray-600 to-gray-800');
+            setButtonText(parsedRolls === colorRolls ? 'Switch to B&W Rolls' : 'Switch to Color Rolls');
+        }
+    }, []);
 
     const findClosestHigherRoll = (height) => {
-        const higherRolls = rolls.filter(roll => roll.size >= height);
+        const higherRolls = currentRolls.filter(roll => roll.size >= height);
         if (higherRolls.length === 0) {
             return null;
         }
@@ -53,8 +77,7 @@ const App = () => {
         }
     };
 
-    const handleFileUpload = async (e) => {
-        const file = e.target.files[0];
+    const handleFileUpload = async (file) => {
         if (file && file.type === 'application/pdf') {
             const arrayBuffer = await file.arrayBuffer();
             const pdfDoc = await PDFDocument.load(arrayBuffer);
@@ -103,69 +126,59 @@ const App = () => {
         });
 
         const rollSummary = Object.keys(rollGroups).map(price => {
-            return (
-                <span key={price} className="font-bold text-lg underline">
-                    {rollGroups[price].toFixed(2)} x {price} = {(rollGroups[price] * price).toFixed(2)}din
-                </span>
-            );
+            return `${rollGroups[price].toFixed(2)} x ${price} = ${(rollGroups[price] * price).toFixed(2)}din`;
         });
 
         setRollCalculations([...calculations, ...rollSummary]);
         setTotalCost(Object.keys(rollGroups).reduce((acc, price) => acc + rollGroups[price] * price, 0));
     };
 
+    const toggleRolls = () => {
+        if (currentRolls === colorRolls) {
+            setCurrentRolls(bandwRolls);
+            setBgColor('bg-gradient-to-r from-gray-400 via-gray-600 to-gray-800');
+            setButtonText('Switch to Color Rolls');
+            localStorage.setItem('currentRolls', JSON.stringify(bandwRolls));
+        } else {
+            setCurrentRolls(colorRolls);
+            setBgColor('bg-gradient-to-r from-pink-500 via-red-500 to-yellow-500');
+            setButtonText('Switch to B&W Rolls');
+            localStorage.setItem('currentRolls', JSON.stringify(colorRolls));
+        }
+        setTotalCost(0);
+    };
+
+    const toggleDetails = () => {
+        setShowDetails(!showDetails);
+    };
+
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 p-6">
+        <div className={`flex flex-col items-center justify-center min-h-screen ${bgColor} p-6`}>
             <h1 className="text-3xl font-bold mb-4 text-center text-white">Roll Size Calculator</h1>
-            <div className="flex justify-center w-full max-w-4xl space-x-6">
-                <div className="flex flex-col items-center w-1/2 p-4 bg-gray-800 rounded-lg shadow-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-5xl">
+                <div className="flex flex-col items-center p-4 bg-gray-200 rounded-lg shadow-md">
                     <InputComponent onDimensionSubmit={handleDimensionSubmit} />
-                    {result && (
-                        <p className="mt-4 text-lg text-gray-300 border border-gray-600 p-4 rounded-lg bg-gray-700 shadow-md text-center">
-                            {result}
-                        </p>
-                    )}
-                    {costCalculation && (
-                        <p className="mt-2 text-lg text-gray-300 border border-gray-600 p-4 rounded-lg bg-gray-700 shadow-md text-center">
-                            {costCalculation}
-                        </p>
-                    )}
+                    <DimensionResult result={result} costCalculation={costCalculation} />
                 </div>
-                <div className="flex flex-col items-center w-1/2 p-4 bg-gray-800 rounded-lg shadow-lg">
-                    <input
-                        type="file"
-                        accept="application/pdf"
-                        onChange={handleFileUpload}
-                        className="mb-4 bg-gray-700 text-gray-300 p-2 rounded-lg"
+                <div className="flex flex-col items-center p-4 bg-gray-200 rounded-lg shadow-md">
+                    <FileUpload
+                        onFileUpload={handleFileUpload}
+                        pageSizes={pageSizes}
+                        onCalculateRolls={calculateRollsForAllPages}
+                        rollCalculations={rollCalculations}
+                        totalCost={totalCost}
+                        showDetails={showDetails}
+                        toggleDetails={toggleDetails}
                     />
-                    {pageSizes.length > 0 && (
-                        <>
-                            <button
-                                onClick={calculateRollsForAllPages}
-                                className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 transition mb-4"
-                            >
-                                Calculate Rolls for All Pages
-                            </button>
-                            <div className="bg-gray-700 p-4 rounded-lg shadow-md w-full max-w-lg">
-                                <h3 className="text-lg font-bold mb-2 text-white">Page Sizes and Rolls:</h3>
-                                {rollCalculations.length > 0 ? (
-                                    <ul className="text-gray-300">
-                                        {rollCalculations.map((calculation, index) => (
-                                            <li key={index} className="mb-1">
-                                                {calculation}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                ) : (
-                                    <p className="text-gray-300">No calculations performed yet.</p>
-                                )}
-                                <p className="mt-4 text-2xl font-bold text-white">
-                                    Total Cost: {totalCost.toFixed(2)}din
-                                </p>
-                            </div>
-                        </>
-                    )}
                 </div>
+            </div>
+            <div className="flex flex-col items-center mt-4">
+                <button
+                    onClick={toggleRolls}
+                    className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition mt-4"
+                >
+                    {buttonText}
+                </button>
             </div>
         </div>
     );
